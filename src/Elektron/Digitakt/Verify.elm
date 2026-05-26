@@ -107,8 +107,14 @@ validateProject inst proj =
       |> (\allThere -> if allThere then TestPass () else TestFail resultIfMissing)
 
     missingPatterns =
-      testAllThere proj.patterns
-        "Project dump does not have all the patterns."
+      -- Firmware 1.15C (and possibly others) may not send SysEx messages for
+      -- every pattern slot -- empty patterns can be omitted. Treat missing
+      -- patterns as a warning rather than a hard failure so the project can
+      -- still be loaded.
+      Bank.toArray proj.patterns
+      |> Array.foldl (Maybe.isJust >> (&&)) True
+      |> (\allThere -> if allThere then TestPass ()
+            else TestWarn () "Project dump does not have all the patterns.")
 
     missingSamples =
       testAllThere proj.samplePool
