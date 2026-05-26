@@ -1,4 +1,5 @@
 # elk-herd
+<!-- hosted at chackneyrules.github.io/elk-herd -->
 
 **elk-herd** is a device manager for some Elektron instruments:
 
