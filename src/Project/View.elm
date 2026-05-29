@@ -103,8 +103,8 @@ projectNameDialog model =
       []
 
 
-sectionToolBar : String -> Kind -> Bool -> Sel.Selection -> Html.Html Msg
-sectionToolBar label k editing sel =
+sectionToolBar : String -> Kind -> Bool -> Int -> Sel.Selection -> Html.Html Msg
+sectionToolBar label k editing clipboardCount sel =
   let
     isSel = Sel.kindStatus k sel == Sel.Selected
     isRel = Sel.kindStatus k sel == Sel.Related
@@ -184,6 +184,21 @@ sectionToolBar label k editing sel =
               , active = False
               , enable = True
               , msg = SortItems True
+              }
+          ]
+        , [ ifKind KPattern <| button
+              { title = "Copy Selected Patterns"
+              , text = "\u{2398}"  -- ⎘
+              , active = False
+              , enable = isSel
+              , msg = CopyItems
+              }
+          , ifKind KPattern <| button
+              { title = "Paste Patterns"
+              , text = "\u{2399}"  -- ⎙
+              , active = False
+              , enable = clipboardCount > 0
+              , msg = PasteItems
               }
           ]
         , [ button
@@ -374,7 +389,7 @@ view model =
               [ Attr.class "section-header" ]
               [ Html.h3 [] [ Html.text label ]
               , bankSelector model k
-              , sectionToolBar (label ++ " Toolbar") k model.nameEditing model.selection
+              , sectionToolBar (label ++ " Toolbar") k model.nameEditing (List.length model.patternClipboard) model.selection
               ]
           , Html.div
             [ Attr.id (bankId k)

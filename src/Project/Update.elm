@@ -14,6 +14,7 @@ import Browser.Dom
 import ByteArray exposing (ByteArray)
 import Elektron.Digitakt.HighLevel as DT
 import Elektron.Digitakt.Related as DT
+import Elektron.Digitakt.Types as DT
 import Elektron.Digitakt.Verify as DT
 import Elektron.Digitakt.Shuffle
 import Elektron.Drive as Drive exposing (Drive)
@@ -693,6 +694,47 @@ that are not needed by any other item.
 
     SelectionGlobalMsg selMsg ->
       returnM <| updateSelection (Sel.update selMsg) model
+
+    CopyItems KPattern ->
+      let
+        clipboard =
+          Sel.selectedPatterns model.selection
+          |> List.filterMap (\idx -> Bank.get idx model.project.patterns)
+          |> List.filter DT.isOccupiedItem
+      in
+        returnM { model | patternClipboard = clipboard }
+
+    CopyItems _ ->
+      returnM model
+
+    PasteItems KPattern ->
+      let
+        clipboard = model.patternClipboard
+        emptySlots =
+          model.project.patterns
+          |> Bank.toIndexedList
+          |> List.filterMap (\(idx, mPat) ->
+              case mPat of
+                Nothing -> Just idx
+                Just pat -> if DT.isEmptyItem pat then Just idx else Nothing
+            )
+        toPlace = List.map2 Tuple.pair emptySlots clipboard
+        pastePatterns project =
+          { project
+          | patterns = List.foldl (\(idx, pat) b -> Bank.put idx pat b) project.patterns toPlace
+          }
+      in
+        if List.isEmpty clipboard
+          then returnM model
+          else
+            returnMC
+              (updateProject pastePatterns model
+                |> undoable "Paste Patterns"
+              )
+              (focus (bankId KPattern))
+
+    PasteItems _ ->
+      returnM model
 
     AlertMsg alertMsg ->
       returnM { model | alert = Alert.update alertMsg model.alert }

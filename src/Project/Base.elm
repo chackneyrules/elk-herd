@@ -72,6 +72,7 @@ type alias Model =
   , alert : Alert.Model
   , progress : Progress.Progress
   , undoStack : Undo.Model Checkpoint
+  , patternClipboard : List DT.Pattern
   }
 
 
@@ -96,6 +97,7 @@ init instrument projectSpec =
     , alert = Alert.noAlert
     , progress = Progress.init
     , undoStack = Undo.init 10 (project, selection)
+    , patternClipboard = []
     }
 
 
@@ -146,6 +148,9 @@ type Msg
 
   | ChangeItemName Kind Int String
   | KeyDown Kind String
+
+  | CopyItems Kind
+  | PasteItems Kind
 
   | AlertMsg Alert.Msg
   | UndoMsg Undo.Msg
