@@ -710,6 +710,9 @@ that are not needed by any other item.
     PasteItems KPattern ->
       let
         clipboard = model.patternClipboard
+
+        selectedSlots = Sel.selectedPatterns model.selection
+
         emptySlots =
           model.project.patterns
           |> Bank.toIndexedList
@@ -718,7 +721,14 @@ that are not needed by any other item.
                 Nothing -> Just idx
                 Just pat -> if T.isEmptyItem pat then Just idx else Nothing
             )
-        toPlace = List.map2 Tuple.pair emptySlots clipboard
+
+        -- Prefer selected slots as destination (overwrite), fall back to empty slots
+        destinationSlots =
+          if not (List.isEmpty selectedSlots)
+            then selectedSlots
+            else emptySlots
+
+        toPlace = List.map2 Tuple.pair destinationSlots clipboard
         pastedSlots = List.map Tuple.first toPlace
         pastePatterns project =
           { project
@@ -727,7 +737,7 @@ that are not needed by any other item.
       in
         if List.isEmpty clipboard
           then returnM model
-          else if List.isEmpty emptySlots
+          else if List.isEmpty destinationSlots
           then
             showAlert
               (Alert.alertMarkdown Alert.Warning """
@@ -735,7 +745,8 @@ that are not needed by any other item.
 
 All 128 pattern slots are in use.
 
-Delete some patterns first to make room for pasting.
+Select a destination pattern slot to overwrite it, or delete some
+patterns first to make room.
 """)
               model
           else
