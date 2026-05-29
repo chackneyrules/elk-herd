@@ -104,11 +104,11 @@ validateProject inst proj =
     testAllThere bank resultIfMissing =
       Bank.toArray bank
       |> Array.foldl (Maybe.isJust >> (&&)) True
-      |> (\allThere -> if allThere then TestPass () else TestFail resultIfMissing)
+      |> (\allThere -> if allThere then TestPass () else TestWarn () resultIfMissing)
 
     missingPatterns =
       testAllThere proj.patterns
-        "Project dump does not have all the patterns."
+        "Project dump is missing some patterns (this can happen with firmware 1.15C). The missing slots will appear empty."
 
     missingSamples =
       testAllThere proj.samplePool
