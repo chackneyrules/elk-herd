@@ -14,7 +14,7 @@ import Browser.Dom
 import ByteArray exposing (ByteArray)
 import Elektron.Digitakt.HighLevel as DT
 import Elektron.Digitakt.Related as DT
-import Elektron.Digitakt.Types as DT
+import Elektron.Digitakt.Types as T
 import Elektron.Digitakt.Verify as DT
 import Elektron.Digitakt.Shuffle
 import Elektron.Drive as Drive exposing (Drive)
@@ -700,7 +700,7 @@ that are not needed by any other item.
         clipboard =
           Sel.selectedPatterns model.selection
           |> List.filterMap (\idx -> Bank.get idx model.project.patterns)
-          |> List.filter DT.isOccupiedItem
+          |> List.filter T.isOccupiedItem
       in
         returnM { model | patternClipboard = clipboard }
 
@@ -716,7 +716,7 @@ that are not needed by any other item.
           |> List.filterMap (\(idx, mPat) ->
               case mPat of
                 Nothing -> Just idx
-                Just pat -> if DT.isEmptyItem pat then Just idx else Nothing
+                Just pat -> if T.isEmptyItem pat then Just idx else Nothing
             )
         toPlace = List.map2 Tuple.pair emptySlots clipboard
         pastePatterns project =
