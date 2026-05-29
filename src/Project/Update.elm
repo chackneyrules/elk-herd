@@ -727,6 +727,17 @@ that are not needed by any other item.
       in
         if List.isEmpty clipboard
           then returnM model
+          else if List.isEmpty emptySlots
+          then
+            showAlert
+              (Alert.alertMarkdown Alert.Warning """
+## Cannot Paste
+
+All 128 pattern slots are in use.
+
+Delete some patterns first to make room for pasting.
+""")
+              model
           else
             returnMC
               (updateProject pastePatterns model
