@@ -13,43 +13,29 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Elm
         run: |
           curl -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz
           gunzip elm.gz
           chmod +x elm
-          sudo mv elm /usr/local/bin/elm
-          elm --version
+          sudo mv elm /usr/local/bin/
 
       - name: Install terser
         run: npm install -g terser
 
-      - name: Fetch external dependencies
-        run: |
-          chmod +x get-ext.sh
-          ./get-ext.sh
+      - name: Get external dependencies
+        run: bash get-ext.sh
 
       - name: Build
-        run: |
-          chmod +x make-prod.sh
-          ./make-prod.sh
+        run: bash make-prod.sh
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: distribution/elk-herd
+          path: distribution/elk-herd/
 
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v4
