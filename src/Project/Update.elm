@@ -719,6 +719,7 @@ that are not needed by any other item.
                 Just pat -> if T.isEmptyItem pat then Just idx else Nothing
             )
         toPlace = List.map2 Tuple.pair emptySlots clipboard
+        pastedSlots = List.map Tuple.first toPlace
         pastePatterns project =
           { project
           | patterns = List.foldl (\(idx, pat) b -> Bank.put idx pat b) project.patterns toPlace
@@ -729,6 +730,7 @@ that are not needed by any other item.
           else
             returnMC
               (updateProject pastePatterns model
+                |> adjustSelection (Sel.selectPatterns pastedSlots)
                 |> undoable "Paste Patterns"
               )
               (focus (bankId KPattern))
