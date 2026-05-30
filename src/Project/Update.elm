@@ -454,58 +454,7 @@ doCopyTrack trackIdx model =
 
 -- Write a track clipboard into destTrack of patternIdx in the project.
 doPasteTrack : TrackClipboard -> Int -> Index T.Pattern -> DT.Project -> DT.Project
-doPasteTrack clipboard destTrack patternIdx project =
-  let
-    mBlankPLock =
-      case project.blankPattern of
-        Nothing -> Nothing
-        Just bp -> Array.get 0 bp.pattern.pLocks
-
-    updateFn mPat =
-      case mPat of
-        Nothing -> Nothing
-        Just pattern ->
-          let
-            binary = pattern.binary
-            pat    = binary.pattern
-            kit    = binary.kit
-            newTracks = Array.set destTrack clipboard.track pat.tracks
-            newSounds =
-              case clipboard.sound of
-                Just s  -> Array.set destTrack s kit.sounds
-                Nothing -> kit.sounds
-            newMidiSetup =
-              case clipboard.midiSetup of
-                Just ms -> Array.set destTrack ms kit.midiSetup
-                Nothing -> kit.midiSetup
-            keptPLocks =
-              Array.toList pat.pLocks
-              |> List.filter (\pl -> pl.track /= destTrack)
-            newTrackPLocks =
-              List.map (\pl -> { pl | track = destTrack }) clipboard.pLocks
-            combined = keptPLocks ++ newTrackPLocks
-            padded =
-              case mBlankPLock of
-                Nothing -> combined
-                Just blankPL ->
-                  combined ++ List.repeat (max 0 (80 - List.length combined)) blankPL
-            newBinary =
-              { binary
-              | pattern =
-                  { pat
-                  | tracks = newTracks
-                  , pLocks = Array.fromList (List.take 80 padded)
-                  }
-              , kit =
-                  { kit
-                  | sounds    = newSounds
-                  , midiSetup = newMidiSetup
-                  }
-              }
-          in
-            Just (T.buildPatternFromDump newBinary)
-  in
-    { project | patterns = Bank.update updateFn patternIdx project.patterns }
+doPasteTrack _ _ _ project = project
 
 
 update : Msg -> Drive -> Model -> Update
