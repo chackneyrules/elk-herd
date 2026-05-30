@@ -62,7 +62,6 @@ type alias Checkpoint = (DT.Project, Sel.Selection)
 type alias TrackClipboard =
   { track     : Dump.Track
   , sound     : Maybe Dump.Sound
-  , midiSetup : Maybe Dump.MidiSetup
   , pLocks    : List Dump.PLock     -- PLocks for this track, with .track normalised to 0
   }
 
