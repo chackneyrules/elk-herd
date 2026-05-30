@@ -10,6 +10,8 @@ module Project.Base exposing
   , UpdateJob
   , Msg(..)
 
+  , TrackClipboard
+
   , bankId
   , itemId
   , itemInputId
