@@ -760,12 +760,6 @@ patterns first to make room.
     PasteItems _ ->
       returnM model
 
-    CopyTrack _ ->
-      returnM model
-
-    PasteTrack _ ->
-      returnM model
-
     AlertMsg alertMsg ->
       returnM { model | alert = Alert.update alertMsg model.alert }
 
@@ -779,6 +773,12 @@ patterns first to make room.
             Nothing -> model
       in
         returnM { model_ | undoStack = undoStack }
+
+    CopyTrack _ ->
+      returnM model
+
+    PasteTrack _ ->
+      returnM model
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
