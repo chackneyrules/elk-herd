@@ -426,30 +426,7 @@ updateJob model job =
 
 -- Copy a single track from the currently selected pattern into the track clipboard.
 doCopyTrack : Int -> Model -> Model
-doCopyTrack trackIdx model =
-  case Sel.firstSelected model.selection of
-    Nothing -> model
-    Just ( k, i ) ->
-      if k /= KPattern then model
-      else
-        case Bank.get (Index i) model.project.patterns of
-          Nothing -> model
-          Just pattern ->
-            case Array.get trackIdx pattern.binary.pattern.tracks of
-              Nothing -> model
-              Just track ->
-                let
-                  clip =
-                    { track     = track
-                    , sound     = Array.get trackIdx pattern.binary.kit.sounds
-                    , midiSetup = Array.get trackIdx pattern.binary.kit.midiSetup
-                    , pLocks    =
-                        Array.toList pattern.binary.pattern.pLocks
-                        |> List.filter (\pl -> pl.track == trackIdx)
-                        |> List.map (\pl -> { pl | track = 0 })
-                    }
-                in
-                  { model | trackClipboard = Just clip }
+doCopyTrack _ model = model
 
 
 -- Write a track clipboard into destTrack of patternIdx in the project.
