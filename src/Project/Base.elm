@@ -10,6 +10,8 @@ module Project.Base exposing
   , UpdateJob
   , Msg(..)
 
+  , TrackClipboard
+
   , bankId
   , itemId
   , itemInputId
@@ -26,6 +28,7 @@ import Json.Decode as D
 import Alert
 import Bank exposing (Index(..))
 import ByteArray exposing (ByteArray)
+import Elektron.Digitakt.Dump as Dump
 import Elektron.Digitakt.HighLevel as DT
 import Elektron.Digitakt.Related as DT
 import Elektron.Digitakt.Shuffle as Shuffle
@@ -56,6 +59,13 @@ type PendingReceive
 
 type alias Checkpoint = (DT.Project, Sel.Selection)
 
+type alias TrackClipboard =
+  { track     : Dump.Track
+  , sound     : Maybe Dump.Sound
+  , midiSetup : Maybe Dump.MidiSetup
+  , pLocks    : List Dump.PLock
+  }
+
 type alias Model =
   { instrument : EI.Instrument
   , projectSpec : EI.ProjectSpec
@@ -73,6 +83,7 @@ type alias Model =
   , progress : Progress.Progress
   , undoStack : Undo.Model Checkpoint
   , patternClipboard : List DT.Pattern
+  , trackClipboard   : Maybe TrackClipboard
   }
 
 
@@ -98,6 +109,7 @@ init instrument projectSpec =
     , progress = Progress.init
     , undoStack = Undo.init 10 (project, selection)
     , patternClipboard = []
+    , trackClipboard   = Nothing
     }
 
 

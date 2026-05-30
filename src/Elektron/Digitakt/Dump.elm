@@ -17,6 +17,8 @@ module Elektron.Digitakt.Dump exposing
   , Kit
   , isDefaultKit
 
+  , MidiSetup
+
   , Sound
   , sameSound
   , soundName

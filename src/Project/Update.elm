@@ -3,6 +3,7 @@ module Project.Update exposing
   , subscriptions
   )
 
+import Array
 import Dict
 import Process
 import Task
@@ -423,6 +424,88 @@ updateJob model job =
       updateF { model | progress = Progress.finish model.progress }
 
 
+doCopyTrack : Int -> Model -> Model
+doCopyTrack trackIdx model =
+  case Sel.firstSelected model.selection of
+    Nothing -> model
+    Just ( k, i ) ->
+      if k /= KPattern then model
+      else
+        case Bank.get (Index i) model.project.patterns of
+          Nothing -> model
+          Just pattern ->
+            case Array.get trackIdx pattern.binary.pattern.tracks of
+              Nothing -> model
+              Just track ->
+                let
+                  clip =
+                    { track     = track
+                    , sound     = Array.get trackIdx pattern.binary.kit.sounds
+                    , midiSetup = Array.get trackIdx pattern.binary.kit.midiSetup
+                    , pLocks    =
+                        Array.toList pattern.binary.pattern.pLocks
+                        |> List.filter (\pl -> pl.track == trackIdx)
+                        |> List.map (\pl -> { pl | track = 0 })
+                    }
+                in
+                  { model | trackClipboard = Just clip }
+
+
+doPasteTrack : TrackClipboard -> Int -> Index T.Pattern -> DT.Project -> DT.Project
+doPasteTrack clipboard destTrack patternIdx project =
+  let
+    mBlankPLock =
+      case project.blankPattern of
+        Nothing -> Nothing
+        Just bp -> Array.get 0 bp.pattern.pLocks
+
+    updateFn mPat =
+      case mPat of
+        Nothing -> Nothing
+        Just pattern ->
+          let
+            binary = pattern.binary
+            pat    = binary.pattern
+            kit    = binary.kit
+            newTracks = Array.set destTrack clipboard.track pat.tracks
+            newSounds =
+              case clipboard.sound of
+                Just s  -> Array.set destTrack s kit.sounds
+                Nothing -> kit.sounds
+            newMidiSetup =
+              case clipboard.midiSetup of
+                Just ms -> Array.set destTrack ms kit.midiSetup
+                Nothing -> kit.midiSetup
+            keptPLocks =
+              Array.toList pat.pLocks
+              |> List.filter (\pl -> pl.track /= destTrack)
+            newTrackPLocks =
+              List.map (\pl -> { pl | track = destTrack }) clipboard.pLocks
+            combined = keptPLocks ++ newTrackPLocks
+            padded =
+              case mBlankPLock of
+                Nothing -> combined
+                Just blankPL ->
+                  combined ++ List.repeat (max 0 (80 - List.length combined)) blankPL
+            newBinary =
+              { binary
+              | pattern =
+                  { pat
+                  | tracks = newTracks
+                  , pLocks = Array.fromList (List.take 80 padded)
+                  }
+              , kit =
+                  { kit
+                  | sounds    = newSounds
+                  , midiSetup = newMidiSetup
+                  }
+              }
+          in
+            Just (T.buildPatternFromDump newBinary)
+  in
+    { project | patterns = Bank.update updateFn patternIdx project.patterns }
+
+
 update : Msg -> Drive -> Model -> Update
 update msg drive model =
   case msg of
@@ -734,21 +817,21 @@ that are not needed by any other item.
           { project
           | patterns = List.foldl (\(idx, pat) b -> Bank.put idx pat b) project.patterns toPlace
           }
-      in
-        if List.isEmpty clipboard
-          then returnM model
-          else if List.isEmpty destinationSlots
-          then
-            showAlert
-              (Alert.alertMarkdown Alert.Warning """
+
+        cannotPasteAlert =
+          Alert.alertMarkdown Alert.Warning """
 ## Cannot Paste
 
 All 128 pattern slots are in use.
 
 Select a destination pattern slot to overwrite it, or delete some
 patterns first to make room.
-""")
-              model
+"""
+      in
+        if List.isEmpty clipboard
+          then returnM model
+          else if List.isEmpty destinationSlots
+          then showAlert cannotPasteAlert model
           else
             returnMC
               (updateProject pastePatterns model
@@ -774,11 +857,25 @@ patterns first to make room.
       in
         returnM { model_ | undoStack = undoStack }
 
-    CopyTrack _ ->
-      returnM model
+    CopyTrack trackIdx ->
+      returnM (doCopyTrack trackIdx model)
 
-    PasteTrack _ ->
-      returnM model
+    PasteTrack destTrack ->
+      case model.trackClipboard of
+        Nothing -> returnM model
+        Just clipboard ->
+          case Sel.firstSelected model.selection of
+            Just ( KPattern, i ) ->
+              let
+                patternIdx = Index i
+              in
+                returnMC
+                  ( updateProject (doPasteTrack clipboard destTrack patternIdx) model
+                    |> adjustSelection (Sel.selectPatterns [ patternIdx ])
+                    |> undoable "Paste Track"
+                  )
+                  (focus (bankId KPattern))
+            _ -> returnM model
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
