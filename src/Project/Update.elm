@@ -425,7 +425,6 @@ updateJob model job =
 
 
 -- Copy a single track from the currently selected pattern into the track clipboard.
-doCopyTrack : Int -> Model -> Model
 doCopyTrack trackIdx model =
   case Sel.firstSelected model.selection of
     Nothing -> model
@@ -453,7 +452,6 @@ doCopyTrack trackIdx model =
 
 
 -- Write a track clipboard into destTrack of patternIdx in the project.
-doPasteTrack : TrackClipboard -> Int -> Index T.Pattern -> DT.Project -> DT.Project
 doPasteTrack clipboard destTrack patternIdx project =
   let
     mBlankPLock =
