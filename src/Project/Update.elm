@@ -424,6 +424,89 @@ updateJob model job =
       updateF { model | progress = Progress.finish model.progress }
 
 
+-- Copy a single track from the currently selected pattern into the track clipboard.
+doCopyTrack : Int -> Model -> Model
+doCopyTrack trackIdx model =
+  case Sel.firstSelected model.selection of
+    Nothing -> model
+    Just ( k, i ) ->
+      if k /= KPattern then model
+      else
+        case Bank.get (Index i) model.project.patterns of
+          Nothing -> model
+          Just pattern ->
+            case Array.get trackIdx pattern.binary.pattern.tracks of
+              Nothing -> model
+              Just track ->
+                { model
+                | trackClipboard = Just
+                    { track     = track
+                    , sound     = Array.get trackIdx pattern.binary.kit.sounds
+                    , midiSetup = Array.get trackIdx pattern.binary.kit.midiSetup
+                    , pLocks    =
+                        Array.toList pattern.binary.pattern.pLocks
+                        |> List.filter (\pl -> pl.track == trackIdx)
+                        |> List.map (\pl -> { pl | track = 0 })
+                    }
+                }
+
+
+-- Write a track clipboard into destTrack of patternIdx in the project.
+doPasteTrack : TrackClipboard -> Int -> Index DT.Pattern -> DT.Project -> DT.Project
+doPasteTrack clipboard destTrack patternIdx project =
+  let
+    mBlankPLock =
+      case project.blankPattern of
+        Nothing -> Nothing
+        Just bp -> Array.get 0 bp.pattern.pLocks
+
+    updateFn mPat =
+      case mPat of
+        Nothing -> Nothing
+        Just pattern ->
+          let
+            binary = pattern.binary
+            pat    = binary.pattern
+            kit    = binary.kit
+            newTracks = Array.set destTrack clipboard.track pat.tracks
+            newSounds =
+              case clipboard.sound of
+                Just s  -> Array.set destTrack s kit.sounds
+                Nothing -> kit.sounds
+            newMidiSetup =
+              case clipboard.midiSetup of
+                Just ms -> Array.set destTrack ms kit.midiSetup
+                Nothing -> kit.midiSetup
+            keptPLocks =
+              Array.toList pat.pLocks
+              |> List.filter (\pl -> pl.track /= destTrack)
+            newTrackPLocks =
+              List.map (\pl -> { pl | track = destTrack }) clipboard.pLocks
+            combined = keptPLocks ++ newTrackPLocks
+            padded =
+              case mBlankPLock of
+                Nothing -> combined
+                Just blankPL ->
+                  combined ++ List.repeat (max 0 (80 - List.length combined)) blankPL
+            newBinary =
+              { binary
+              | pattern =
+                  { pat
+                  | tracks = newTracks
+                  , pLocks = Array.fromList (List.take 80 padded)
+                  }
+              , kit =
+                  { kit
+                  | sounds    = newSounds
+                  , midiSetup = newMidiSetup
+                  }
+              }
+          in
+            Just (T.buildPatternFromDump newBinary)
+  in
+    { project | patterns = Bank.update updateFn patternIdx project.patterns }
+
+
 update : Msg -> Drive -> Model -> Update
 update msg drive model =
   case msg of
@@ -762,123 +845,22 @@ patterns first to make room.
       returnM model
 
     CopyTrack trackIdx ->
-      let
-        mPattern =
-          Sel.firstSelected model.selection
-          |> Maybe.andThen (\(k, i) -> if k == KPattern then Just (Index i) else Nothing)
-          |> Maybe.andThen (\idx -> Bank.get idx model.project.patterns)
-      in
-        case mPattern of
-          Nothing -> returnM model
-          Just pattern ->
-            let
-              binary = pattern.binary
-              mTrack = Array.get trackIdx binary.pattern.tracks
-              mSound = Array.get trackIdx binary.kit.sounds
-              mMidiSetup = Array.get trackIdx binary.kit.midiSetup
-              trackPLocks =
-                Array.toList binary.pattern.pLocks
-                |> List.filter (\pl -> pl.track == trackIdx)
-                |> List.map (\pl -> { pl | track = 0 })
-            in
-              case mTrack of
-                Nothing -> returnM model
-                Just track ->
-                  returnM
-                    { model
-                    | trackClipboard = Just
-                      { track     = track
-                      , sound     = mSound
-                      , midiSetup = mMidiSetup
-                      , pLocks    = trackPLocks
-                      }
-                    }
+      returnM (doCopyTrack trackIdx model)
 
     PasteTrack destTrack ->
-      case model.trackClipboard of
-        Nothing -> returnM model
-        Just clipboard ->
+      case ( model.trackClipboard, Sel.firstSelected model.selection ) of
+        ( Just clipboard, Just ( KPattern, i ) ) ->
           let
-            mPatternIdx =
-              Sel.firstSelected model.selection
-              |> Maybe.andThen (\(k, i) -> if k == KPattern then Just (Index i) else Nothing)
+            patternIdx = Index i
           in
-            case mPatternIdx of
-              Nothing -> returnM model
-              Just patternIdx ->
-                let
-                  pasteTrack project =
-                    let
-                      mBlankPLock =
-                        project.blankPattern
-                        |> Maybe.andThen (.pattern >> .pLocks >> Array.get 0)
-
-                      update mPat =
-                        case mPat of
-                          Nothing -> Nothing
-                          Just pattern ->
-                            let
-                              binary = pattern.binary
-                              pat    = binary.pattern
-                              kit    = binary.kit
-
-                              newTracks =
-                                Array.set destTrack clipboard.track pat.tracks
-
-                              newSounds =
-                                case clipboard.sound of
-                                  Just s  -> Array.set destTrack s kit.sounds
-                                  Nothing -> kit.sounds
-
-                              newMidiSetup =
-                                case clipboard.midiSetup of
-                                  Just ms -> Array.set destTrack ms kit.midiSetup
-                                  Nothing -> kit.midiSetup
-
-                              -- Replace PLocks for destTrack with those from clipboard
-                              keptPLocks =
-                                Array.toList pat.pLocks
-                                |> List.filter (\pl -> pl.track /= destTrack)
-
-                              newTrackPLocks =
-                                List.map (\pl -> { pl | track = destTrack }) clipboard.pLocks
-
-                              combined = keptPLocks ++ newTrackPLocks
-
-                              -- Pad back to 80 entries using a blank PLock as fill
-                              padded =
-                                case mBlankPLock of
-                                  Nothing -> combined
-                                  Just blankPL ->
-                                    combined
-                                    ++ List.repeat (max 0 (80 - List.length combined)) blankPL
-
-                              newBinary =
-                                { binary
-                                | pattern =
-                                    { pat
-                                    | tracks = newTracks
-                                    , pLocks = Array.fromList (List.take 80 padded)
-                                    }
-                                , kit =
-                                    { kit
-                                    | sounds    = newSounds
-                                    , midiSetup = newMidiSetup
-                                    }
-                                }
-                            in
-                              Just (T.buildPatternFromDump newBinary)
-                    in
-                      { project
-                      | patterns = Bank.update update patternIdx project.patterns
-                      }
-                in
-                  returnMC
-                    ( updateProject pasteTrack model
-                      |> adjustSelection (Sel.selectPatterns [ patternIdx ])
-                      |> undoable "Paste Track"
-                    )
-                    (focus (bankId KPattern))
+            returnMC
+              ( updateProject (doPasteTrack clipboard destTrack patternIdx) model
+                |> adjustSelection (Sel.selectPatterns [ patternIdx ])
+                |> undoable "Paste Track"
+              )
+              (focus (bankId KPattern))
+        _ ->
+          returnM model
 
     AlertMsg alertMsg ->
       returnM { model | alert = Alert.update alertMsg model.alert }
