@@ -438,8 +438,8 @@ doCopyTrack trackIdx model =
             case Array.get trackIdx pattern.binary.pattern.tracks of
               Nothing -> model
               Just track ->
-                { model
-                | trackClipboard = Just
+                let
+                  clip =
                     { track     = track
                     , sound     = Array.get trackIdx pattern.binary.kit.sounds
                     , midiSetup = Array.get trackIdx pattern.binary.kit.midiSetup
@@ -448,11 +448,12 @@ doCopyTrack trackIdx model =
                         |> List.filter (\pl -> pl.track == trackIdx)
                         |> List.map (\pl -> { pl | track = 0 })
                     }
-                }
+                in
+                  { model | trackClipboard = Just clip }
 
 
 -- Write a track clipboard into destTrack of patternIdx in the project.
-doPasteTrack : TrackClipboard -> Int -> Index DT.Pattern -> DT.Project -> DT.Project
+doPasteTrack : TrackClipboard -> Int -> Index T.Pattern -> DT.Project -> DT.Project
 doPasteTrack clipboard destTrack patternIdx project =
   let
     mBlankPLock =
@@ -848,19 +849,21 @@ patterns first to make room.
       returnM (doCopyTrack trackIdx model)
 
     PasteTrack destTrack ->
-      case ( model.trackClipboard, Sel.firstSelected model.selection ) of
-        ( Just clipboard, Just ( KPattern, i ) ) ->
-          let
-            patternIdx = Index i
-          in
-            returnMC
-              ( updateProject (doPasteTrack clipboard destTrack patternIdx) model
-                |> adjustSelection (Sel.selectPatterns [ patternIdx ])
-                |> undoable "Paste Track"
-              )
-              (focus (bankId KPattern))
-        _ ->
-          returnM model
+      case model.trackClipboard of
+        Nothing -> returnM model
+        Just clipboard ->
+          case Sel.firstSelected model.selection of
+            Just ( KPattern, i ) ->
+              let
+                patternIdx = Index i
+              in
+                returnMC
+                  ( updateProject (doPasteTrack clipboard destTrack patternIdx) model
+                    |> adjustSelection (Sel.selectPatterns [ patternIdx ])
+                    |> undoable "Paste Track"
+                  )
+                  (focus (bankId KPattern))
+            _ -> returnM model
 
     AlertMsg alertMsg ->
       returnM { model | alert = Alert.update alertMsg model.alert }
