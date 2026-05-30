@@ -4,6 +4,7 @@ module Project.Update exposing
   )
 
 import Array
+import Bitwise
 import Dict
 import Process
 import Task
@@ -438,14 +439,19 @@ doCopyTrack trackIdx model =
               Nothing -> model
               Just track ->
                 let
+                  isMidi =
+                    case pattern.binary.kit.midiMask of
+                      Nothing -> False
+                      Just mask -> Bitwise.and mask (Bitwise.shiftLeftBy trackIdx 1) /= 0
                   clip =
-                    { track     = track
-                    , sound     = Array.get trackIdx pattern.binary.kit.sounds
-                    , midiSetup = Array.get trackIdx pattern.binary.kit.midiSetup
-                    , pLocks    =
+                    { track       = track
+                    , sound       = Array.get trackIdx pattern.binary.kit.sounds
+                    , midiSetup   = Array.get trackIdx pattern.binary.kit.midiSetup
+                    , pLocks      =
                         Array.toList pattern.binary.pattern.pLocks
                         |> List.filter (\pl -> pl.track == trackIdx)
                         |> List.map (\pl -> { pl | track = 0 })
+                    , isMidiTrack = isMidi
                     }
                 in
                   { model | trackClipboard = Just clip }
@@ -487,6 +493,19 @@ doPasteTrack clipboard destTrack patternIdx project =
                 Nothing -> combined
                 Just blankPL ->
                   combined ++ List.repeat (max 0 (80 - List.length combined)) blankPL
+            newMidiMask =
+              case kit.midiMask of
+                Nothing -> Nothing
+                Just mask ->
+                  let
+                    bit     = Bitwise.shiftLeftBy destTrack 1
+                    cleared = Bitwise.and mask (Bitwise.complement bit)
+                  in
+                    Just
+                      (if clipboard.isMidiTrack
+                       then Bitwise.or cleared bit
+                       else cleared)
+
             newBinary =
               { binary
               | pattern =
@@ -498,6 +517,7 @@ doPasteTrack clipboard destTrack patternIdx project =
                   { kit
                   | sounds    = newSounds
                   , midiSetup = newMidiSetup
+                  , midiMask  = newMidiMask
                   }
               }
           in

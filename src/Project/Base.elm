@@ -60,10 +60,11 @@ type PendingReceive
 type alias Checkpoint = (DT.Project, Sel.Selection)
 
 type alias TrackClipboard =
-  { track     : Dump.Track
-  , sound     : Maybe Dump.Sound
-  , midiSetup : Maybe Dump.MidiSetup
-  , pLocks    : List Dump.PLock
+  { track       : Dump.Track
+  , sound       : Maybe Dump.Sound
+  , midiSetup   : Maybe Dump.MidiSetup
+  , pLocks      : List Dump.PLock
+  , isMidiTrack : Bool    -- source midiMask bit, so paste sets the correct machine type
   }
 
 type alias Model =
