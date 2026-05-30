@@ -26,6 +26,7 @@ import Json.Decode as D
 import Alert
 import Bank exposing (Index(..))
 import ByteArray exposing (ByteArray)
+import Elektron.Digitakt.Dump as Dump
 import Elektron.Digitakt.HighLevel as DT
 import Elektron.Digitakt.Related as DT
 import Elektron.Digitakt.Shuffle as Shuffle
@@ -56,6 +57,13 @@ type PendingReceive
 
 type alias Checkpoint = (DT.Project, Sel.Selection)
 
+type alias TrackClipboard =
+  { track     : Dump.Track
+  , sound     : Maybe Dump.Sound
+  , midiSetup : Maybe Dump.MidiSetup
+  , pLocks    : List Dump.PLock     -- PLocks for this track, with .track normalised to 0
+  }
+
 type alias Model =
   { instrument : EI.Instrument
   , projectSpec : EI.ProjectSpec
@@ -73,6 +81,7 @@ type alias Model =
   , progress : Progress.Progress
   , undoStack : Undo.Model Checkpoint
   , patternClipboard : List DT.Pattern
+  , trackClipboard   : Maybe TrackClipboard
   }
 
 
@@ -98,6 +107,7 @@ init instrument projectSpec =
     , progress = Progress.init
     , undoStack = Undo.init 10 (project, selection)
     , patternClipboard = []
+    , trackClipboard   = Nothing
     }
 
 
@@ -151,6 +161,9 @@ type Msg
 
   | CopyItems Kind
   | PasteItems Kind
+
+  | CopyTrack Int
+  | PasteTrack Int
 
   | AlertMsg Alert.Msg
   | UndoMsg Undo.Msg
