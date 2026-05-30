@@ -103,8 +103,8 @@ projectNameDialog model =
       []
 
 
-sectionToolBar : String -> Kind -> Bool -> Int -> Bool -> Sel.Selection -> Html.Html Msg
-sectionToolBar label k editing clipboardCount hasTrackClipboard sel =
+sectionToolBar : String -> Kind -> Bool -> Int -> Sel.Selection -> Html.Html Msg
+sectionToolBar label k editing clipboardCount sel =
   let
     isSel = Sel.kindStatus k sel == Sel.Selected
     isRel = Sel.kindStatus k sel == Sel.Related
@@ -134,61 +134,13 @@ sectionToolBar label k editing clipboardCount hasTrackClipboard sel =
             , Aria.role "group"
             ]
             btns
-
-    -- Small numbered buttons for per-track copy/paste (DT2: 16 tracks)
-    trackNums = List.range 0 15
-
-    trackBtn enable msg title text =
-      Html.button
-        [ Attr.class "btn btn-light btn-sm"
-        , Attr.style "padding" "1px 3px"
-        , Attr.style "font-size" "11px"
-        , Attr.type_ "button"
-        , Attr.title title
-        , Attr.disabled (not enable)
-        , Events.onClick msg
-        ]
-        [ Html.text text ]
-
-    trackGroups =
-      if k /= KPattern then []
-      else
-        [ Html.div
-            [ Attr.class "btn-group btn-group-sm", Aria.role "group", Attr.title "Copy Track" ]
-            <| Html.span
-                [ Attr.class "btn btn-light btn-sm disabled"
-                , Attr.attribute "aria-disabled" "true"
-                , Attr.style "padding" "1px 4px"
-                , Attr.style "font-size" "11px"
-                ]
-                [ Html.text "\u{2398}" ]
-            :: List.map (\i ->
-                trackBtn isSel (CopyTrack i)
-                  ("Copy Track " ++ String.fromInt (i + 1))
-                  (String.fromInt (i + 1))
-              ) trackNums
-        , Html.div
-            [ Attr.class "btn-group btn-group-sm", Aria.role "group", Attr.title "Paste Track" ]
-            <| Html.span
-                [ Attr.class "btn btn-light btn-sm disabled"
-                , Attr.attribute "aria-disabled" "true"
-                , Attr.style "padding" "1px 4px"
-                , Attr.style "font-size" "11px"
-                ]
-                [ Html.text "\u{2399}" ]
-            :: List.map (\i ->
-                trackBtn (isSel && hasTrackClipboard) (PasteTrack i)
-                  ("Paste to Track " ++ String.fromInt (i + 1))
-                  (String.fromInt (i + 1))
-              ) trackNums
-        ]
   in
     Html.div
       [ Attr.class "btn-toolbar section-commands"
       , Aria.role "toolbar"
       , Aria.label label
       ]
-      <| (List.filterMap group
+      <| List.filterMap group
         [ [ button
               { title = "Select Related"
               , text = "\u{21E2}"  -- arrow
@@ -257,8 +209,7 @@ sectionToolBar label k editing clipboardCount hasTrackClipboard sel =
               , msg = DeleteItems
               }
           ]
-        ])
-      ++ trackGroups
+        ]
 
 bankSelector : Model -> Kind -> Html.Html Msg
 bankSelector model k =
@@ -438,7 +389,7 @@ view model =
               [ Attr.class "section-header" ]
               [ Html.h3 [] [ Html.text label ]
               , bankSelector model k
-              , sectionToolBar (label ++ " Toolbar") k model.nameEditing (List.length model.patternClipboard) (Maybe.isJust model.trackClipboard) model.selection
+              , sectionToolBar (label ++ " Toolbar") k model.nameEditing (List.length model.patternClipboard) model.selection
               ]
           , Html.div
             [ Attr.id (bankId k)
